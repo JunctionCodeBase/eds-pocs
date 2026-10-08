@@ -1,5 +1,5 @@
 mountpoints:
   /:
-    url: "https://author-p153710-e1614654.adobeaemcloud.com/bin/franklin.delivery/JunctionCodeBase/eds-pocs/main"
+    url: "https://author-p153710-e1614654.adobeaemcloud.com/bin/franklin.delivery/aemsitestrial/fleethippo75824/main"
     type: "markup"
     suffix: ".html"
