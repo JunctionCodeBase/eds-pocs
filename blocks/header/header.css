@@ -1,0 +1,218 @@
+/* ============================
+   ADC Header Block — Composition Layout
+   Layout engine for child blocks (adc-header-logo,
+   adc-mega-menu, adc-header-search, adc-header-language,
+   adc-header-links, adc-header-link)
+   ============================ */
+
+/* Layout container */
+.header-container {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 var(--spacing-16, 1rem);
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+/* ---- Skip Navigation (accessibility) ---- */
+.header-skip-nav {
+  position: absolute;
+  top: -100%;
+  left: 0;
+  background: var(--color-blue, #001489);
+  color: var(--color-white, #fff);
+  padding: var(--spacing-8, 0.5rem) var(--spacing-16, 1rem);
+  z-index: 9999;
+  font-weight: var(--font-weight-700, 700);
+  text-decoration: none;
+}
+
+.header-skip-nav:focus {
+  top: 0;
+}
+
+/* ---- Main Section (dark bar) ---- */
+.header-main {
+  background-color: var(--header-main-bg, #222731);
+  padding: var(--header-main-padding, 0.938rem 0 1rem 0);
+}
+
+/* Top-bar links (e.g. Important Safety Information) are white on the dark bar */
+.header-main .adc-header-link-anchor,
+.header-main .adc-header-link-anchor:hover,
+.header-main .adc-header-link-anchor:focus-visible {
+  color: var(--color-white, #fff);
+}
+
+.header-main-right {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-16, 1rem);
+  margin-left: auto;
+}
+
+/* ---- Utility Bottom Section (nav bar) ---- */
+.header-utility-bottom {
+  background-color: var(--header-utility-bottom-bg, #fff);
+  position: relative;
+}
+
+/* Mega-menu nav links are dark on the white nav bar (AEM design) */
+.header-utility-bottom .adc-mega-menu-link,
+.header-utility-bottom .adc-mega-menu-link:hover,
+.header-utility-bottom .adc-mega-menu-link[aria-expanded="true"] {
+  color: var(--header-mega-menu-link-color, #222731);
+}
+
+/* V1 header field: hideBottomUtilitySection — hides on desktop only */
+@media (width >= 992px) {
+  .header-utility-bottom-hidden-desktop {
+    display: none;
+  }
+}
+
+.header-utility-bottom .header-container {
+  justify-content: space-between;
+}
+
+/* ---- Tools Section ---- */
+.header-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-16, 1rem);
+  margin-left: auto;
+}
+
+/* CTA buttons (fallback) */
+.header-cta {
+  display: none;
+  padding: 0.5rem 1.25rem;
+  font-size: var(--font-size-14, 0.875rem);
+  font-weight: var(--font-weight-700, 700);
+  text-decoration: none;
+  border-radius: var(--border-radius, 0.25rem);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  border: 2px solid var(--color-charcoal, #222731);
+  color: var(--color-charcoal, #222731);
+  background: transparent;
+  transition: all 0.2s;
+}
+
+.header-cta:hover {
+  background: var(--color-charcoal, #222731);
+  color: var(--color-white, #fff);
+}
+
+.header-cta-primary {
+  background: var(--color-blue, #001489);
+  border-color: var(--color-blue, #001489);
+  color: var(--color-white, #fff);
+}
+
+.header-cta-primary:hover {
+  background: var(--color-charcoal, #222731);
+  border-color: var(--color-charcoal, #222731);
+}
+
+/* ---- Hamburger (mobile) ---- */
+.header-hamburger {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  margin-right: var(--spacing-12, 0.75rem);
+}
+
+.header-hamburger-line {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background-color: var(--color-white, #fff);
+  transition: all 0.3s;
+}
+
+.header-hamburger-active .header-hamburger-line:nth-child(1) {
+  transform: rotate(45deg) translate(5px, 5px);
+}
+
+.header-hamburger-active .header-hamburger-line:nth-child(2) {
+  opacity: 0;
+}
+
+.header-hamburger-active .header-hamburger-line:nth-child(3) {
+  transform: rotate(-45deg) translate(5px, -5px);
+}
+
+/* Prevent body scroll when mobile menu open */
+body.header-mobile-menu-open {
+  overflow: hidden;
+}
+
+/* ---- Mobile menu visible state ---- */
+.adc-mega-menu-mobile {
+  display: none;
+}
+
+.adc-mega-menu-mobile-open {
+  display: block;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--header-mobile-menu-bg, #fff);
+  z-index: 99;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  box-shadow: 0 4px 8px rgb(0 0 0 / 15%);
+}
+
+/* ---- Sticky Header ---- */
+.header-sticky {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  animation: header-slide-down 0.3s ease;
+}
+
+@keyframes header-slide-down {
+  from {
+    transform: translateY(-100%);
+  }
+
+  to {
+    transform: translateY(0);
+  }
+}
+
+/* ---- Desktop (992px+) ---- */
+@media (width >= 992px) {
+  .header-hamburger {
+    display: none;
+  }
+
+  .adc-mega-menu-mobile,
+  .adc-mega-menu-mobile-open {
+    display: none !important;
+  }
+
+  .header-cta {
+    display: inline-block;
+  }
+}
+
+/* ---- Header wrapper (loaded state) ---- */
+header .header[data-block-status="loaded"] {
+  visibility: visible;
+}
+
+header .header {
+  visibility: hidden;
+}

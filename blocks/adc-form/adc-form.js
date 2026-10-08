@@ -1,0 +1,816 @@
+/**
+ * ADC Form Block
+ *
+ * Authoring table structure (rows in UE):
+ * Row 1 : formType       — ESL API endpoint key (e.g. "contactUs")
+ * Row 2 : successMessage — shown after successful submission
+ * Row 3 : failureMessage — shown on API error
+ * Row 4 : recaptcha      — "true" to enable Google reCAPTCHA v2
+ * Row 5+ : field rows    — each row: [type, name, label, required, placeholder, regex, errorMsg]
+ *
+ * Field types supported: text, email, tel, password, textarea, hidden,
+ * select, checkbox, radio. For select/checkbox/radio the last cell holds the
+ * options as "Label:value" pairs separated by ";" (a single checkbox may embed
+ * a consent version in its value as "value|version").
+ *
+ * Dynamic dropdowns: a select whose options cell is "lookup:<key>" (e.g.
+ * "lookup:states") is filled at render time from the proxy lookup route
+ * (data-lookup-endpoint, default derived from data-endpoint) — the EDS
+ * equivalent of AEM's LookupDataSource servlet. Static "Label:value" options
+ * continue to work unchanged.
+ *
+ * Submission flow:
+ *   fetch('POST', config.endpoint) → serverless proxy (adds secret) → ESL API
+ *   When `data-endpoint` is empty or "demo" the block runs in demo mode and
+ *   simulates a successful submission so the UI can be validated without a
+ *   backend.
+ */
+
+import { moveInstrumentation } from '../../scripts/scripts.js';
+
+// Serverless proxy endpoint (set via the block attribute `data-endpoint`).
+const ENDPOINT_ATTR = 'data-endpoint';
+const LOOKUP_ENDPOINT_ATTR = 'data-lookup-endpoint';
+const RECAPTCHA_SITE_KEY_ATTR = 'data-recaptcha-site-key';
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function buildHiddenInput(name, value) {
+  const input = document.createElement('input');
+  input.type = 'hidden';
+  input.name = name;
+  input.value = value;
+  return input;
+}
+
+/**
+ * Reads per-country context from page metadata. This is the EDS replacement for
+ * AEM's inherited page properties (siteName / countryCode) that the Sling Model
+ * turned into X-Application-Id / X-Country-Code headers. Authors set these once
+ * per country via the metadata sheet (see chapter 17 theming for the pattern).
+ */
+const metaContent = (name) => document.querySelector(`meta[name="${name}"]`)?.content?.trim() || '';
+
+function getFormContext() {
+  return {
+    applicationId: metaContent('application-id') || metaContent('app-id'),
+    countryCode: metaContent('country') || metaContent('country-code'),
+    language: (document.documentElement.lang || metaContent('language')).split('-')[0].toUpperCase(),
+  };
+}
+
+// ─── Validation ───────────────────────────────────────────────────────────────
+
+function validateField(input) {
+  const errorEl = input.closest('.a-input-field')?.querySelector('.a-input-field-text-require');
+  const { required } = input;
+  const { regex } = input.dataset;
+  const isCheckbox = input.type === 'checkbox';
+  const isRadio = input.type === 'radio';
+  const value = (isCheckbox || isRadio) ? '' : input.value?.trim();
+
+  let filled;
+  if (isCheckbox) {
+    filled = input.checked;
+  } else if (isRadio) {
+    filled = !!input.form?.querySelector(`input[name="${CSS.escape(input.name)}"]:checked`);
+  } else {
+    filled = !!value;
+  }
+
+  let valid = true;
+  let errorMsg = '';
+
+  if (required && !filled) {
+    valid = false;
+    errorMsg = input.dataset.requiredMsg || 'This field is required';
+  } else if (regex && value && !new RegExp(regex).test(value)) {
+    valid = false;
+    errorMsg = input.dataset.regexMsg || 'Invalid format';
+  }
+
+  if (errorEl) {
+    errorEl.querySelector('span').textContent = errorMsg;
+    errorEl.style.display = valid ? 'none' : 'flex';
+  }
+  input.setAttribute('aria-invalid', valid ? 'false' : 'true');
+  return valid;
+}
+
+function validateForm(form) {
+  const inputs = [...form.querySelectorAll('input:not([type=hidden]), textarea, select')];
+  return inputs.reduce((acc, input) => validateField(input) && acc, true);
+}
+
+// ─── Form data serialisation ───────────────────────────────────────────────────
+
+/**
+ * Supports nested field names via dot notation: "address.city" → { address: { city: value } }
+ */
+function setNestedValue(obj, path, value) {
+  if (!path.includes('.')) {
+    obj[path] = value; // eslint-disable-line no-param-reassign
+    return;
+  }
+  const keys = path.split('.');
+  const lastKey = keys.pop();
+  const target = keys.reduce((o, k) => {
+    o[k] = o[k] || {}; // eslint-disable-line no-param-reassign
+    return o[k];
+  }, obj);
+  target[lastKey] = value;
+}
+
+function serializeForm(form) {
+  const body = {};
+  const headers = { 'Content-Type': 'application/json' };
+
+  // Text-like inputs, selects and textareas
+  [...form.querySelectorAll('input:not([type=checkbox]):not([type=radio]), select, textarea')].forEach((input) => {
+    const { name, value } = input;
+    if (!name) return;
+    if (input.dataset.header === 'true') {
+      headers[name] = value;
+    } else {
+      setNestedValue(body, name, value);
+    }
+  });
+
+  // Radio groups — only the checked value
+  const radioNames = new Set(
+    [...form.querySelectorAll('input[type=radio]')].map((r) => r.name).filter(Boolean),
+  );
+  radioNames.forEach((name) => {
+    const checked = form.querySelector(`input[type=radio][name="${CSS.escape(name)}"]:checked`);
+    if (checked) setNestedValue(body, name, checked.value);
+  });
+
+  // Checkbox groups (consent format)
+  const checkboxGroups = {};
+  [...form.querySelectorAll('input[type=checkbox]')].forEach((cb) => {
+    const { name } = cb;
+    if (!name) return;
+    if (!checkboxGroups[name]) checkboxGroups[name] = [];
+    let { value } = cb;
+    let consentVersion;
+    if (value.includes('|')) {
+      [value, consentVersion] = value.split('|');
+    }
+    const entry = { consentName: value, consentValue: cb.checked };
+    if (consentVersion) entry.consentVersion = consentVersion;
+    checkboxGroups[name].push(entry);
+  });
+
+  Object.entries(checkboxGroups).forEach(([name, entries]) => {
+    setNestedValue(body, name, entries.length === 1 ? entries[0].consentValue : entries);
+  });
+
+  return { body, headers };
+}
+
+// ─── reCAPTCHA ────────────────────────────────────────────────────────────────
+
+function loadRecaptcha(siteKey) {
+  return new Promise((resolve) => {
+    if (window.grecaptcha) { resolve(); return; }
+    const script = document.createElement('script');
+    script.src = `https://www.google.com/recaptcha/api.js?render=${siteKey}`;
+    script.onload = () => resolve();
+    document.head.append(script);
+  });
+}
+
+async function getRecaptchaToken(siteKey) {
+  await loadRecaptcha(siteKey);
+  return window.grecaptcha.execute(siteKey, { action: 'submit' });
+}
+
+// ─── Field builders ───────────────────────────────────────────────────────────
+
+function buildInputField({
+  type, name, label, required, placeholder, regex, errorMsg, id,
+}) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'a-input-field mt-0';
+  wrapper.dataset.required = required ? 'true' : 'false';
+
+  const group = document.createElement('div');
+  group.className = 'form-group a-form-grp';
+  group.setAttribute('data-component', 'input-field');
+
+  // Label
+  if (label && type !== 'hidden') {
+    const labelEl = document.createElement('label');
+    labelEl.className = 'form-label a-input-label';
+    labelEl.htmlFor = id;
+    labelEl.innerHTML = `<span class="a-input-field-label">${label}</span>${required ? '<span class="a-input-field-required">*</span>' : ''}`;
+    group.append(labelEl);
+  }
+
+  // Input / textarea
+  const inputGroup = document.createElement('div');
+  inputGroup.className = 'input-group a-input-grp';
+
+  let input;
+  if (type === 'textarea') {
+    input = document.createElement('textarea');
+    input.rows = 4;
+  } else {
+    input = document.createElement('input');
+    input.type = type || 'text';
+  }
+
+  input.className = 'form-control a-input-control';
+  input.name = name;
+  input.id = id;
+  input.placeholder = placeholder || '';
+  if (required) input.required = true;
+  if (regex) input.dataset.regex = regex;
+  if (errorMsg) input.dataset.regexMsg = errorMsg;
+  input.dataset.requiredMsg = `${label || name} is required`;
+
+  input.addEventListener('blur', () => validateField(input));
+
+  inputGroup.append(input);
+  group.append(inputGroup);
+
+  // Error message container
+  if (required || regex) {
+    const errorEl = document.createElement('div');
+    errorEl.className = 'form-text a-input-field-text-require';
+    errorEl.style.display = 'none';
+    errorEl.setAttribute('aria-live', 'polite');
+    errorEl.innerHTML = '<em class="abt-icon abt-icon-notice-circle-outline"></em><span></span>';
+    group.append(errorEl);
+  }
+
+  wrapper.append(group);
+  return wrapper;
+}
+
+// ─── Choice / select builders ──────────────────────────────────────────────────
+
+/**
+ * Parses "Label:value;Label:value" into [{ label, value }].
+ */
+function parseOptions(str) {
+  return (str || '')
+    .split(';')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((pair) => {
+      const idx = pair.indexOf(':');
+      if (idx === -1) return { label: pair, value: pair };
+      return { label: pair.slice(0, idx).trim(), value: pair.slice(idx + 1).trim() };
+    });
+}
+
+// Options cell prefix that turns a select into a dynamic ESL-backed dropdown.
+// e.g. Options = "lookup:states" → options fetched at render time from the
+// proxy (the EDS equivalent of AEM's LookupDataSource servlet). Anything
+// without this prefix is treated as static "Label:value" pairs, so existing
+// authored selects keep working unchanged.
+const LOOKUP_PREFIX = 'lookup:';
+
+const lookupTypeOf = (value) => (
+  (value || '').trim().toLowerCase().startsWith(LOOKUP_PREFIX)
+    ? value.trim().slice(LOOKUP_PREFIX.length).trim()
+    : ''
+);
+
+function buildErrorEl() {
+  const errorEl = document.createElement('div');
+  errorEl.className = 'form-text a-input-field-text-require';
+  errorEl.style.display = 'none';
+  errorEl.setAttribute('aria-live', 'polite');
+  errorEl.innerHTML = '<em class="abt-icon abt-icon-notice-circle-outline"></em><span></span>';
+  return errorEl;
+}
+
+function buildSelectField({
+  name, label, required, placeholder, value, id,
+}) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'a-input-field mt-0';
+  wrapper.dataset.required = required ? 'true' : 'false';
+
+  const group = document.createElement('div');
+  group.className = 'form-group a-form-grp';
+
+  if (label) {
+    const labelEl = document.createElement('label');
+    labelEl.className = 'form-label a-input-label';
+    labelEl.htmlFor = id;
+    labelEl.innerHTML = `<span class="a-input-field-label">${label}</span>${required ? '<span class="a-input-field-required">*</span>' : ''}`;
+    group.append(labelEl);
+  }
+
+  const select = document.createElement('select');
+  select.className = 'form-control a-input-control';
+  select.name = name;
+  select.id = id;
+  if (required) select.required = true;
+
+  const ph = document.createElement('option');
+  ph.value = '';
+  ph.textContent = placeholder || 'Select…';
+  ph.disabled = required;
+  ph.selected = true;
+  select.append(ph);
+
+  const lookupType = lookupTypeOf(value);
+  if (lookupType) {
+    // Dynamic ESL-backed dropdown: mark it for hydrateLookups() to fill after
+    // render. Static options are skipped so the two modes never mix.
+    select.dataset.lookup = lookupType;
+  } else {
+    parseOptions(value).forEach((opt) => {
+      const optionEl = document.createElement('option');
+      optionEl.value = opt.value;
+      optionEl.textContent = opt.label;
+      select.append(optionEl);
+    });
+  }
+
+  select.addEventListener('change', () => validateField(select));
+  group.append(select);
+  if (required) group.append(buildErrorEl());
+
+  wrapper.append(group);
+  return wrapper;
+}
+
+function buildChoiceField({
+  type, name, label, required, value, id,
+}) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'a-input-field a-choice-field mt-0';
+  wrapper.dataset.required = required ? 'true' : 'false';
+
+  const options = parseOptions(value);
+  const isSingleCheckbox = type === 'checkbox' && options.length === 0;
+
+  if (label && !isSingleCheckbox) {
+    const legend = document.createElement('span');
+    legend.className = 'a-input-label';
+    legend.innerHTML = `<span class="a-input-field-label">${label}</span>${required ? '<span class="a-input-field-required">*</span>' : ''}`;
+    wrapper.append(legend);
+  }
+
+  const list = isSingleCheckbox ? [{ label, value }] : options;
+
+  list.forEach((opt, i) => {
+    const optId = `${id}-${i}`;
+    const row = document.createElement('div');
+    row.className = 'a-choice-option';
+
+    const input = document.createElement('input');
+    input.type = type;
+    input.name = name;
+    input.id = optId;
+    input.value = opt.value;
+    if (required) input.required = true;
+    input.dataset.requiredMsg = `${label || name} is required`;
+    input.addEventListener('change', () => validateField(input));
+
+    const optLabel = document.createElement('label');
+    optLabel.htmlFor = optId;
+    optLabel.textContent = opt.label;
+
+    row.append(input, optLabel);
+    wrapper.append(row);
+  });
+
+  if (required) wrapper.append(buildErrorEl());
+  return wrapper;
+}
+
+// ─── Form builder ─────────────────────────────────────────────────────────────
+
+function buildForm(config, fields) {
+  const form = document.createElement('form');
+  form.className = 'o-form-container-main-form';
+  form.noValidate = true;
+
+  const fieldContainer = document.createElement('div');
+  fieldContainer.className = 'form-container';
+
+  fields.forEach((field, i) => {
+    const id = `adc-form-field-${i}`;
+    let el;
+    if (field.type === 'hidden') {
+      el = buildHiddenInput(field.name, field.value || '');
+      form.append(el);
+    } else if (field.type === 'select') {
+      el = buildSelectField({ ...field, id });
+      fieldContainer.append(el);
+    } else if (field.type === 'checkbox' || field.type === 'radio') {
+      el = buildChoiceField({ ...field, id });
+      fieldContainer.append(el);
+    } else {
+      el = buildInputField({ ...field, id });
+      fieldContainer.append(el);
+    }
+    // Preserve Universal Editor instrumentation so authored field items stay
+    // selectable/re-orderable and the container's "+" add-child affordance works.
+    if (field.sourceRow && el) moveInstrumentation(field.sourceRow, el);
+  });
+
+  form.append(fieldContainer);
+
+  // Buttons row
+  const btnRow = document.createElement('div');
+  btnRow.className = 'o-form-container-buttons d-flex';
+
+  const submitBtn = document.createElement('button');
+  submitBtn.type = 'submit';
+  submitBtn.className = 'cmp-button abt-btn abt-btn-primary';
+  submitBtn.textContent = config.submitLabel || 'Submit';
+
+  btnRow.append(submitBtn);
+
+  if (config.resetLabel) {
+    const resetBtn = document.createElement('button');
+    resetBtn.type = 'reset';
+    resetBtn.className = 'cmp-button abt-btn abt-btn-secondary';
+    resetBtn.textContent = config.resetLabel;
+    btnRow.append(resetBtn);
+  }
+
+  form.append(btnRow);
+
+  // Messages
+  const successEl = document.createElement('div');
+  successEl.className = 'o-form-container-success-msg';
+  successEl.setAttribute('role', 'alert');
+  successEl.style.display = 'none';
+
+  const errorEl = document.createElement('div');
+  errorEl.className = 'o-form-container-error-msg';
+  errorEl.setAttribute('role', 'alert');
+  errorEl.style.display = 'none';
+
+  return {
+    form, successEl, errorEl, submitBtn,
+  };
+}
+
+// ─── Submission ───────────────────────────────────────────────────────────────
+
+async function submitForm(form, config, successEl, errorEl, submitBtn) {
+  successEl.style.display = 'none';
+  errorEl.style.display = 'none';
+
+  if (!validateForm(form)) return;
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Submitting…';
+
+  try {
+    const { body, headers } = serializeForm(form);
+
+    // AEM Form Container parity: the container's `requestType` is added to the
+    // JSON payload (e.g. "newsletter_subscription") so the ESL API can route
+    // the submission. Fields never overwrite it.
+    if (config.requestType && body.requestType === undefined) {
+      body.requestType = config.requestType;
+    }
+
+    // Add reCAPTCHA token if configured
+    if (config.recaptcha && config.recaptchaSiteKey) {
+      const token = await getRecaptchaToken(config.recaptchaSiteKey);
+      headers['g-recaptcha-response'] = token;
+    }
+
+    const ctx = config.context || {};
+    const contextHeaders = {
+      'x-form-type': config.formType,
+      ...(ctx.applicationId ? { 'x-application-id': ctx.applicationId } : {}),
+      ...(ctx.countryCode ? { 'x-country-code': ctx.countryCode } : {}),
+      ...(ctx.language ? { 'x-preferred-language': ctx.language } : {}),
+    };
+
+    // On localhost we surface the raw API response so the demo shows the call.
+    const isLocalDemo = /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
+
+    let ok;
+    let apiStatus = 0;
+    let apiText = '';
+    if (!config.endpoint || config.endpoint === 'demo') {
+      // Demo mode: no serverless proxy configured yet. Simulate a successful
+      // submission so the UI/behaviour can be validated end to end.
+      // eslint-disable-next-line no-console
+      console.info('[adc-form] demo submit', { headers: { ...headers, ...contextHeaders }, body });
+      await new Promise((resolve) => { setTimeout(resolve, 600); });
+      ok = true;
+    } else {
+      const response = await fetch(config.endpoint, {
+        method: 'POST',
+        headers: { ...headers, ...contextHeaders },
+        body: JSON.stringify(body),
+      });
+      apiStatus = response.status;
+      apiText = await response.text();
+      ok = response.ok;
+    }
+
+    if (ok) {
+      successEl.textContent = isLocalDemo && apiText
+        ? apiText.slice(0, 1000)
+        : (config.successMessage || 'Thank you for your submission.');
+      successEl.style.display = 'block';
+      form.reset();
+    } else {
+      errorEl.textContent = isLocalDemo
+        ? `API ${apiStatus}: ${apiText}`.slice(0, 1000)
+        : (config.failureMessage || 'Something went wrong. Please try again.');
+      errorEl.style.display = 'block';
+    }
+  } catch {
+    errorEl.textContent = config.failureMessage || 'Something went wrong. Please try again.';
+    errorEl.style.display = 'block';
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = config.submitLabel || 'Submit';
+  }
+}
+
+// ─── Block decoration ─────────────────────────────────────────────────────────
+
+// Supported field types (first cell of a field row / adc-form-field item).
+const FIELD_TYPES = new Set([
+  'text', 'email', 'tel', 'password', 'textarea', 'hidden', 'select', 'checkbox', 'radio',
+]);
+
+// DA key-value config rows: recognised key (cell[0]) → config property.
+const CONFIG_KEY_MAP = new Map([
+  ['formtype', 'formType'],
+  ['endpointkey', 'formType'],
+  ['requesttype', 'requestType'],
+  ['successmessage', 'successMessage'],
+  ['failuremessage', 'failureMessage'],
+  ['recaptcha', 'recaptcha'],
+  ['submitlabel', 'submitLabel'],
+  ['resetlabel', 'resetLabel'],
+  ['endpoint', 'endpoint'],
+  ['proxyendpoint', 'endpoint'],
+]);
+
+// Universal Editor container (adc-form) model field order. Leading single-cell
+// value rows map positionally to these properties (endpoint is detected by its
+// URL shape, so it is not positional).
+const UE_CONFIG_ORDER = ['formType', 'requestType', 'successMessage', 'failureMessage', 'submitLabel'];
+
+const cellText = (el) => el?.textContent?.trim() || '';
+
+/**
+ * Flattens a UE field-item row into the model's value sequence, regardless of
+ * whether xwalk emits the grouped `settings_*` fields as one multi-child cell
+ * or as separate cells. A cell that wraps several block children (a grouped
+ * cell) is expanded into its individual values; a plain cell contributes its
+ * own text. The result is always ordered by the adc-form-field model:
+ *   [type, name, label, required, placeholder, regex, errorMsg, options]
+ */
+function rowLeafValues(cells) {
+  const values = [];
+  cells.forEach((cell) => {
+    const kids = [...cell.children].filter((k) => /^(P|DIV|SPAN|LI)$/.test(k.tagName));
+    if (kids.length > 1) kids.forEach((k) => values.push(cellText(k)));
+    else values.push(cellText(cell));
+  });
+  return values;
+}
+
+function parseFieldRow(cells) {
+  // Flat DA table row: type,name,label,required,placeholder,regex,errorMsg,options
+  if (cells.length >= 7) {
+    return {
+      type: cellText(cells[0]).toLowerCase() || 'text',
+      name: cellText(cells[1]),
+      label: cellText(cells[2]),
+      required: /^true$/i.test(cellText(cells[3])),
+      placeholder: cellText(cells[4]),
+      regex: cellText(cells[5]),
+      errorMsg: cellText(cells[6]),
+      value: cellText(cells[7]),
+    };
+  }
+
+  // Universal Editor item row (adc-form-field). Flatten to the model's value
+  // order so it works whether settings are grouped in one cell or split across
+  // cells (trailing empty values simply drop off).
+  const v = rowLeafValues(cells);
+  const [
+    type = '', name = '', label = '', required = '',
+    placeholder = '', regex = '', errorMsg = '', options = '',
+  ] = v;
+  return {
+    type: type.toLowerCase() || 'text',
+    name,
+    label,
+    required: /^true$/i.test(required),
+    placeholder,
+    regex,
+    errorMsg,
+    value: options,
+  };
+}
+
+// True for the adc-form-field child rows the Universal Editor renders. Each
+// xwalk block/item child carries its own data-aue-model / resource, which is a
+// far more reliable signal than trying to match the control value text.
+function isFieldItemRow(row) {
+  if (row.getAttribute('data-aue-model') === 'adc-form-field') return true;
+  const res = row.getAttribute('data-aue-resource') || '';
+  return /adc[-_]?form[-_]?field/i.test(res);
+}
+
+/**
+ * Populates dynamic ESL-backed dropdowns after the form renders — the EDS
+ * equivalent of AEM's LookupDataSource servlet. For each `select[data-lookup]`
+ * it GETs the proxy lookup route with the page's application/country/language
+ * context and appends the returned options. Failures degrade gracefully (the
+ * select keeps its placeholder); the form is never blocked on a lookup.
+ */
+async function hydrateLookups(root, config) {
+  const selects = [...root.querySelectorAll('select[data-lookup]')];
+  if (!selects.length || !config.lookupEndpoint) return;
+
+  const { applicationId, countryCode, language } = config.context || {};
+  await Promise.all(selects.map(async (select) => {
+    const type = select.dataset.lookup;
+    const url = new URL(config.lookupEndpoint, window.location.origin);
+    url.searchParams.set('type', type);
+    if (applicationId) url.searchParams.set('app', applicationId);
+    if (countryCode) url.searchParams.set('country', countryCode);
+    if (language) url.searchParams.set('lang', language);
+    try {
+      const res = await fetch(url.toString());
+      if (!res.ok) return;
+      const data = await res.json().catch(() => ({}));
+      const options = Array.isArray(data.options) ? data.options : [];
+      const frag = document.createDocumentFragment();
+      options.forEach((opt) => {
+        const optionEl = document.createElement('option');
+        optionEl.value = opt.value;
+        optionEl.textContent = opt.label;
+        frag.append(optionEl);
+      });
+      select.append(frag);
+    } catch {
+      // Network/JSON errors leave the placeholder in place — non-fatal.
+    }
+  }));
+}
+
+export default function decorate(block) {
+  const rows = [...block.querySelectorAll(':scope > div')];
+  if (!rows.length) return;
+
+  // Editor-only diagnostic: dump the raw row/cell shape decorate receives so the
+  // exact Universal Editor DOM can be inspected from the browser console.
+  if (block.hasAttribute('data-aue-resource')) {
+    // eslint-disable-next-line no-console
+    console.debug('[adc-form] raw rows', rows.map((r) => {
+      const cs = [...r.querySelectorAll(':scope > div')];
+      return {
+        cells: cs.length,
+        first: cs[0]?.textContent.trim().slice(0, 24),
+        model: r.getAttribute('data-aue-model') || '',
+        leaves: isFieldItemRow(r) ? rowLeafValues(cs) : undefined,
+      };
+    }));
+  }
+
+  const config = {
+    formType: '',
+    requestType: '',
+    successMessage: '',
+    failureMessage: '',
+    recaptcha: false,
+    submitLabel: 'Submit',
+    resetLabel: block.getAttribute('data-reset-label') || '',
+    recaptchaSiteKey: block.getAttribute(RECAPTCHA_SITE_KEY_ATTR) || '',
+    // Proxy URL: attribute/metadata is the site-level (AEM OSGi-equivalent)
+    // source. A URL authored in the UE container dialog overrides it below.
+    endpoint: block.getAttribute(ENDPOINT_ATTR) || metaContent('form-endpoint') || '',
+    // Explicit lookup URL only; if absent it is derived from `endpoint` after
+    // the config rows are parsed (so a UE-authored endpoint is respected too).
+    lookupEndpoint: block.getAttribute(LOOKUP_ENDPOINT_ATTR)
+      || metaContent('form-lookup-endpoint') || '',
+    context: getFormContext(),
+  };
+
+  const assignConfig = (prop, rawValue) => {
+    const value = (rawValue || '').trim();
+    if (prop === 'recaptcha') config.recaptcha = /^true$/i.test(value);
+    else if (prop === 'submitLabel') config.submitLabel = value || 'Submit';
+    // The proxy URL is optional in the dialog — never let a blank value wipe
+    // the site-level attribute/metadata fallback.
+    else if (prop === 'endpoint') {
+      if (value) config.endpoint = value;
+    } else config[prop] = value;
+  };
+
+  const fields = [];
+  const positionalConfig = [];
+  let hasKeyedConfig = false;
+
+  // A single walk handles BOTH authoring formats:
+  //   • DA table:  key-value config rows (`| formType | contactUs |`) + multi-cell field rows
+  //   • Universal Editor:  container model fields render as leading single-cell
+  //     value rows (in model order) followed by adc-form-field item rows.
+  rows.forEach((row) => {
+    const cells = [...row.querySelectorAll(':scope > div')];
+    if (!cells.length) return;
+    const firstText = cells[0].textContent.trim();
+    const firstLc = firstText.toLowerCase();
+    const ueField = isFieldItemRow(row);
+
+    if (ueField || (FIELD_TYPES.has(firstLc) && cells.length >= 2)) {
+      // Field row: a UE adc-form-field child item, or a DA table field row.
+      const field = parseFieldRow(cells);
+      // Keep named fields (production) and any UE item row (even if not yet
+      // named) so a just-added field persists in the editor.
+      if (field.name || ueField || row.hasAttribute('data-aue-resource')) {
+        field.sourceRow = row;
+        fields.push(field);
+      }
+    } else if (cells.length >= 2 && CONFIG_KEY_MAP.has(firstLc)) {
+      // DA key-value config row.
+      assignConfig(CONFIG_KEY_MAP.get(firstLc), cells[cells.length - 1].textContent);
+      hasKeyedConfig = true;
+    } else if (cells.length === 1) {
+      // A URL is unambiguous — treat it as the proxy endpoint no matter where
+      // it sits, so it never shifts the positional message mapping.
+      if (/^https?:\/\//i.test(firstText)) assignConfig('endpoint', firstText);
+      else positionalConfig.push(firstText);
+    } else if (cells.length >= 2) {
+      // The container's own model fields rendered as one multi-cell row
+      // [formType, successMessage, failureMessage, submitLabel, endpoint].
+      // URL cells go straight to `endpoint`; the rest map in model order.
+      let pi = 0;
+      cells.forEach((c) => {
+        const value = cellText(c);
+        if (/^https?:\/\//i.test(value)) {
+          assignConfig('endpoint', value);
+          return;
+        }
+        const prop = UE_CONFIG_ORDER[pi];
+        pi += 1;
+        if (prop) assignConfig(prop, value);
+      });
+      hasKeyedConfig = true;
+    }
+  });
+
+  // UE positional fallback: leading value rows map to the model field order.
+  if (!hasKeyedConfig && positionalConfig.length) {
+    positionalConfig.forEach((value, i) => {
+      const prop = UE_CONFIG_ORDER[i];
+      if (prop) assignConfig(prop, value);
+    });
+  }
+
+  // Local demo only: on localhost, default to the local proxy when no endpoint
+  // was authored, so `aem up` + the proxy shows a real API call. Never fires in
+  // production (the published site is HTTPS, not localhost).
+  if (!config.endpoint && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname)) {
+    config.endpoint = 'http://localhost:3030/api/form-submit';
+  }
+
+  // Derive the lookup endpoint from the (possibly UE-authored) submit endpoint
+  // when one was not supplied explicitly — mirrors AEM's single ESL domain.
+  if (!config.lookupEndpoint && config.endpoint) {
+    config.lookupEndpoint = config.endpoint.replace(/form-submit(\/?)$/, 'form-lookup$1');
+  }
+
+  // Build the form
+  const container = document.createElement('div');
+  container.className = 'o-form-container';
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'o-form-container-wrapper';
+
+  const outer = document.createElement('div');
+  outer.className = 'o-form-container-outer';
+
+  const {
+    form, successEl, errorEl, submitBtn,
+  } = buildForm(config, fields);
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    submitForm(form, config, successEl, errorEl, submitBtn);
+  });
+
+  outer.append(form, successEl, errorEl);
+  wrapper.append(outer);
+  container.append(wrapper);
+
+  block.textContent = '';
+  block.append(container);
+
+  // Fill any dynamic ESL-backed dropdowns once the form is in the DOM.
+  hydrateLookups(form, config);
+}

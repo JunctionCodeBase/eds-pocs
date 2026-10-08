@@ -1,0 +1,544 @@
+{
+  "groups": [
+    {
+      "title": "Default Content",
+      "id": "default",
+      "components": [
+        {
+          "title": "Text",
+          "id": "text",
+          "plugins": {
+            "xwalk": {
+              "page": {
+                "resourceType": "core/franklin/components/text/v1/text",
+                "template": {}
+              }
+            }
+          }
+        },
+        {
+          "title": "Title",
+          "id": "title",
+          "plugins": {
+            "xwalk": {
+              "page": {
+                "resourceType": "core/franklin/components/title/v1/title",
+                "template": {
+                  "model": "title"
+                }
+              }
+            }
+          }
+        },
+        {
+          "title": "Image",
+          "id": "image",
+          "plugins": {
+            "xwalk": {
+              "page": {
+                "resourceType": "core/franklin/components/image/v1/image",
+                "template": {}
+              }
+            }
+          }
+        },
+        {
+          "title": "Button",
+          "id": "button",
+          "plugins": {
+            "xwalk": {
+              "page": {
+                "resourceType": "core/franklin/components/button/v1/button",
+                "template": {
+                  "model": "button"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "title": "Sections",
+      "id": "sections",
+      "components": [
+        {
+          "title": "Section",
+          "id": "section",
+          "plugins": {
+            "xwalk": {
+              "page": {
+                "resourceType": "core/franklin/components/section/v1/section",
+                "template": {
+                  "model": "section"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "title": "Blocks",
+      "id": "blocks",
+      "components": [
+        {
+          "title": "ADC Accordion Item",
+          "id": "adc-accordion-item",
+          "plugins": {
+            "xwalk": {
+              "page": {
+                "resourceType": "core/franklin/components/block/v1/block",
+                "template": {
+                  "name": "ADC Accordion Item",
+                  "model": "adc-accordion-item"
+                }
+              }
+            }
+          }
+        },
+        {
+          "title": "ADC Accordion",
+          "id": "adc-accordion",
+          "plugins": {
+            "xwalk": {
+              "page": {
+                "resourceType": "core/franklin/components/block/v1/block",
+                "template": {
+                  "name": "ADC Accordion",
+                  "model": "adc-accordion"
+                }
+              }
+            }
+          }
+        },
+        {
+          "title": "ADC Button",
+          "id": "adc-button",
+          "plugins": {
+            "xwalk": {
+              "page": {
+                "resourceType": "core/franklin/components/block/v1/block",
+                "template": {
+                  "name": "ADC Button",
+                  "model": "adc-button"
+                }
+              }
+            }
+          }
+        },
+        {
+          "title": "ADC Card Carousel",
+          "id": "adc-card-carousel",
+          "plugins": {
+            "xwalk": {
+              "page": {
+                "resourceType": "core/franklin/components/block/v1/block",
+                "template": {
+                  "name": "ADC Card Carousel",
+                  "model": "adc-card-carousel",
+                  "filter": "adc-card-carousel"
+                }
+              }
+            }
+          }
+        },
+        {
+          "title": "ADC Card Item",
+          "id": "adc-card-item",
+          "plugins": {
+            "xwalk": {
+              "page": {
+                "resourceType": "core/franklin/components/block/v1/block/item",
+                "template": {
+                  "name": "ADC Card Item",
+                  "model": "adc-card-item"
+                }
+              }
+            }
+          }
+        },
+        {
+          "title": "ADC Card",
+          "id": "adc-card",
+          "plugins": {
+            "xwalk": {
+              "page": {
+                "resourceType": "core/franklin/components/block/v1/block",
+                "template": {
+                  "name": "ADC Card",
+                  "model": "adc-card",
+                  "filter": "adc-card"
+                }
+              }
+            }
+          }
+        },
+        {
+          "title": "ADC Cards",
+          "id": "adc-cards",
+          "plugins": {
+            "xwalk": {
+              "page": {
+                "resourceType": "core/franklin/components/block/v1/block",
+                "template": {
+                  "name": "ADC Cards",
+                  "model": "adc-cards",
+                  "filter": "adc-cards",
+                  "columns": "3"
+                }
+              }
+            }
+          }
+        },
+        {
+          "title": "ADC CTA Banner",
+          "id": "adc-cta-banner",
+          "plugins": {
+            "xwalk": {
+              "page": {
+                "resourceType": "core/franklin/components/block/v1/block",
+                "template": {
+                  "name": "ADC CTA Banner",
+                  "model": "adc-cta-banner"
+                }
+              }
+            }
+          }
+        },
+        {
+          "title": "ADC Form",
+          "id": "adc-form",
+          "plugins": {
+            "xwalk": {
+              "page": {
+                "resourceType": "core/franklin/components/block/v1/block",
+                "template": {
+                  "name": "ADC Form",
+                  "model": "adc-form",
+                  "filter": "adc-form"
+                }
+              }
+            }
+          }
+        },
+        {
+          "title": "ADC Form Field",
+          "id": "adc-form-field",
+          "plugins": {
+            "xwalk": {
+              "page": {
+                "resourceType": "core/franklin/components/block/v1/block/item",
+                "template": {
+                  "name": "ADC Form Field",
+                  "model": "adc-form-field"
+                }
+              }
+            }
+          }
+        },
+        {
+          "title": "ADC Image",
+          "id": "adc-image",
+          "plugins": {
+            "xwalk": {
+              "page": {
+                "resourceType": "core/franklin/components/block/v1/block",
+                "template": {
+                  "name": "ADC Image",
+                  "model": "adc-image"
+                }
+              }
+            }
+          }
+        },
+        {
+          "title": "ADC Inline Text Title",
+          "id": "adc-inline-text-title",
+          "plugins": {
+            "xwalk": {
+              "page": {
+                "resourceType": "core/franklin/components/block/v1/block",
+                "template": {
+                  "name": "ADC Inline Text Title",
+                  "model": "adc-inline-text-title"
+                }
+              }
+            }
+          }
+        },
+        {
+          "title": "ADC Inline Text",
+          "id": "adc-inlinetext",
+          "plugins": {
+            "xwalk": {
+              "page": {
+                "resourceType": "core/franklin/components/block/v1/block",
+                "template": {
+                  "name": "ADC Inline Text",
+                  "model": "adc-inlinetext"
+                }
+              }
+            }
+          }
+        },
+        {
+          "title": "ADC Link",
+          "id": "adc-link",
+          "plugins": {
+            "xwalk": {
+              "page": {
+                "resourceType": "core/franklin/components/block/v1/block",
+                "template": {
+                  "name": "ADC Link",
+                  "model": "adc-link"
+                }
+              }
+            }
+          }
+        },
+        {
+          "title": "ADC Logo",
+          "id": "adc-logo",
+          "plugins": {
+            "xwalk": {
+              "page": {
+                "resourceType": "core/franklin/components/block/v1/block",
+                "template": {
+                  "name": "ADC Logo",
+                  "model": "adc-logo"
+                }
+              }
+            }
+          }
+        },
+        {
+          "title": "ADC Tab Item",
+          "id": "adc-tabs-item",
+          "plugins": {
+            "xwalk": {
+              "page": {
+                "resourceType": "core/franklin/components/block/v1/block",
+                "template": {
+                  "name": "ADC Tab Item",
+                  "model": "adc-tabs-item"
+                }
+              }
+            }
+          }
+        },
+        {
+          "title": "ADC Tabs",
+          "id": "adc-tabs",
+          "plugins": {
+            "xwalk": {
+              "page": {
+                "resourceType": "core/franklin/components/block/v1/block",
+                "template": {
+                  "name": "ADC Tabs",
+                  "model": "adc-tabs"
+                }
+              }
+            }
+          }
+        },
+        {
+          "title": "ADC Video Item",
+          "id": "adc-video-item",
+          "plugins": {
+            "xwalk": {
+              "page": {
+                "resourceType": "core/franklin/components/block/v1/block",
+                "template": {
+                  "name": "ADC Video Item",
+                  "model": "adc-video-item"
+                }
+              }
+            }
+          }
+        },
+        {
+          "title": "ADC Video Playlist",
+          "id": "adc-video-playlist",
+          "plugins": {
+            "xwalk": {
+              "page": {
+                "resourceType": "core/franklin/components/block/v1/block",
+                "template": {
+                  "name": "ADC Video Playlist",
+                  "model": "adc-video-playlist"
+                }
+              }
+            }
+          }
+        },
+        {
+          "title": "Cards",
+          "id": "cards",
+          "plugins": {
+            "xwalk": {
+              "page": {
+                "resourceType": "core/franklin/components/block/v1/block",
+                "template": {
+                  "name": "Cards",
+                  "model": "adc-cards"
+                }
+              }
+            }
+          }
+        },
+        {
+          "title": "Card",
+          "id": "card",
+          "plugins": {
+            "xwalk": {
+              "page": {
+                "resourceType": "core/franklin/components/block/v1/block/item",
+                "template": {
+                  "name": "Card",
+                  "model": "card"
+                }
+              }
+            }
+          }
+        },
+        {
+          "title": "Columns",
+          "id": "columns",
+          "plugins": {
+            "xwalk": {
+              "page": {
+                "resourceType": "core/franklin/components/columns/v1/columns",
+                "template": {
+                  "columns": "2",
+                  "rows": "1"
+                }
+              }
+            }
+          }
+        },
+        {
+          "title": "Fragment",
+          "id": "fragment",
+          "plugins": {
+            "xwalk": {
+              "page": {
+                "resourceType": "core/franklin/components/block/v1/block",
+                "template": {
+                  "name": "Fragment",
+                  "model": "fragment"
+                }
+              }
+            }
+          }
+        },
+        {
+          "title": "Hero Banner",
+          "id": "hero-banner",
+          "plugins": {
+            "xwalk": {
+              "page": {
+                "resourceType": "core/franklin/components/block/v1/block",
+                "template": {
+                  "name": "Hero",
+                  "model": "hero-banner",
+                  "key-value": true
+                }
+              }
+            }
+          }
+        },
+        {
+          "title": "ADC Header Logo",
+          "id": "adc-header-logo",
+          "plugins": {
+            "xwalk": {
+              "page": {
+                "resourceType": "core/franklin/components/block/v1/block",
+                "template": {
+                  "name": "ADC Header Logo",
+                  "model": "adc-header-logo"
+                }
+              }
+            }
+          }
+        },
+        {
+          "title": "ADC Mega Menu",
+          "id": "adc-mega-menu",
+          "plugins": {
+            "xwalk": {
+              "page": {
+                "resourceType": "core/franklin/components/block/v1/block",
+                "template": {
+                  "name": "ADC Mega Menu",
+                  "model": "adc-mega-menu"
+                }
+              }
+            }
+          }
+        },
+        {
+          "title": "ADC Header Search",
+          "id": "adc-header-search",
+          "plugins": {
+            "xwalk": {
+              "page": {
+                "resourceType": "core/franklin/components/block/v1/block",
+                "template": {
+                  "name": "ADC Header Search",
+                  "model": "adc-header-search"
+                }
+              }
+            }
+          }
+        },
+        {
+          "title": "ADC Header Link",
+          "id": "adc-header-link",
+          "plugins": {
+            "xwalk": {
+              "page": {
+                "resourceType": "core/franklin/components/block/v1/block",
+                "template": {
+                  "name": "ADC Header Link",
+                  "model": "adc-header-link"
+                }
+              }
+            }
+          }
+        },
+        {
+          "title": "ADC Header Language",
+          "id": "adc-header-language",
+          "plugins": {
+            "xwalk": {
+              "page": {
+                "resourceType": "core/franklin/components/block/v1/block",
+                "template": {
+                  "name": "ADC Header Language",
+                  "model": "adc-header-language"
+                }
+              }
+            }
+          }
+        },
+        {
+          "title": "ADC Header Links",
+          "id": "adc-header-links",
+          "plugins": {
+            "xwalk": {
+              "page": {
+                "resourceType": "core/franklin/components/block/v1/block",
+                "template": {
+                  "name": "ADC Header Links",
+                  "model": "adc-header-links"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ADC Form — Login API demo (third-party API in EDS)</title>
+  <link rel="stylesheet" href="./adc-form.css">
+  <style>
+    :root {
+      --color-text: #1d1d1d;
+      --color-link: #0057b8;
+      --color-link-hover: #004494;
+      --color-background: #fff;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      padding: 2rem 1rem;
+      background: #f4f5f7;
+      color: var(--color-text);
+    }
+
+    main { max-width: 720px; margin: 0 auto; }
+    h1 { font-size: 1.5rem; }
+    p.hint { color: #555; font-size: 0.9rem; line-height: 1.5; }
+    code { background: #e9ebf0; padding: 0 .25rem; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Login API — third-party API integration in EDS</h1>
+    <p class="hint">
+      The browser posts <code>loginID</code> / <code>password</code> to the local
+      proxy (<code>http://localhost:3030/api/form-submit</code>). The proxy adds
+      the <code>x-secret-header</code> and the Abbott context headers
+      <em>server-side</em> and forwards to
+      <code>https://dev2.services.abbott/api/v2/public/profile/login</code>, then
+      returns the real API response. The secret never reaches the browser — open
+      DevTools → Network and confirm the outgoing request carries no secret.
+    </p>
+
+    <!-- Real block. formType is the Abbott API path; the proxy resolves + secures it. -->
+    <div
+      class="adc-form block"
+      data-block-name="adc-form"
+      data-endpoint="http://localhost:3030/api/form-submit"
+      data-reset-label="Reset"
+    >
+      <div><div>formType</div><div>/api/v2/public/profile/login</div></div>
+      <div><div>successMessage</div><div>Login API responded successfully.</div></div>
+      <div><div>failureMessage</div><div>Login API returned an error (see the response above).</div></div>
+      <div><div>recaptcha</div><div>false</div></div>
+      <div><div>submitLabel</div><div>Log in</div></div>
+
+      <div><div>text</div><div>loginID</div><div>Login ID</div><div>true</div><div>test@gmail.com</div><div></div><div>Enter your login ID</div></div>
+      <div><div>password</div><div>password</div><div>Password</div><div>true</div><div>Test@1234</div><div></div><div>Enter your password</div></div>
+      <div><div>text</div><div>g-recaptcha-response</div><div>reCAPTCHA token (paste a fresh token for a successful login)</div><div>false</div><div>03AFcWeA5...</div><div></div><div></div></div>
+    </div>
+  </main>
+
+  <script type="module">
+    import decorate from './adc-form.js';
+
+    document.querySelectorAll('.adc-form').forEach((block) => decorate(block));
+  </script>
+</body>
+</html>

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ADC Form — demo</title>
+  <link rel="stylesheet" href="./adc-form.css">
+  <style>
+    :root {
+      --color-text: #1d1d1d;
+      --color-link: #0057b8;
+      --color-link-hover: #004494;
+      --color-background: #fff;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      padding: 2rem 1rem;
+      background: #f4f5f7;
+      color: var(--color-text);
+    }
+
+    main {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+    }
+
+    p.hint {
+      color: #555;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>ADC Form — demo</h1>
+    <p class="hint">
+      Runs in demo mode (<code>data-endpoint="demo"</code>): submissions are
+      logged to the console and simulate success. Set <code>data-endpoint</code>
+      to a serverless proxy URL for real submission.
+    </p>
+
+    <!-- Authoring table structure. Rows 1–5 = config, rows 6+ = fields. -->
+    <div
+      class="adc-form block"
+      data-block-name="adc-form"
+      data-endpoint="demo"
+      data-reset-label="Reset"
+    >
+      <div><div>formType</div><div>contactUs</div></div>
+      <div><div>successMessage</div><div>Thank you! We'll be in touch shortly.</div></div>
+      <div><div>failureMessage</div><div>Sorry, something went wrong. Please try again.</div></div>
+      <div><div>recaptcha</div><div>false</div></div>
+      <div><div>submitLabel</div><div>Send message</div></div>
+
+      <div><div>text</div><div>firstName</div><div>First name</div><div>true</div><div>Jane</div><div></div><div></div></div>
+      <div><div>text</div><div>lastName</div><div>Last name</div><div>true</div><div>Doe</div><div></div><div></div></div>
+      <div><div>email</div><div>email</div><div>Email</div><div>true</div><div>jane@doe.com</div><div>^[^@\s]+@[^@\s]+\.[^@\s]+$</div><div>Enter a valid email address</div></div>
+      <div><div>tel</div><div>phone</div><div>Phone</div><div>false</div><div>+1 555 0100</div><div></div><div></div></div>
+      <div><div>select</div><div>country</div><div>Country</div><div>true</div><div>Choose a country…</div><div></div><div></div><div>United States:US;United Kingdom:UK;India:IN</div></div>
+      <div><div>select</div><div>state</div><div>State (dynamic lookup)</div><div>true</div><div>Choose a state…</div><div></div><div></div><div>lookup:states</div></div>
+      <div><div>radio</div><div>contactPref</div><div>Preferred contact method</div><div>true</div><div></div><div></div><div></div><div>Email:email;Phone:phone</div></div>
+      <div><div>textarea</div><div>message</div><div>Message</div><div>false</div><div>How can we help?</div><div></div><div></div></div>
+      <div><div>checkbox</div><div>consent</div><div>I agree to be contacted about my enquiry</div><div>true</div><div></div><div></div><div></div><div>marketing|v1</div></div>
+      <div><div>hidden</div><div>source</div><div></div><div></div><div></div><div></div><div></div><div>eds-demo</div></div>
+    </div>
+
+    <h1 style="margin-top:3rem">Newsletter subscription — API example</h1>
+    <p class="hint">
+      Mirrors the AEM Form Container node
+      <code>formType=/api/v2/public/profile/subscriptions</code>,
+      <code>requestType=newsletter_subscription</code>. Runs in demo mode; for
+      real submission set <code>data-endpoint</code> to a deployed serverless
+      proxy URL.
+    </p>
+
+    <div
+      class="adc-form block"
+      data-block-name="adc-form"
+      data-endpoint="demo"
+      data-reset-label=""
+    >
+      <div><div>formType</div><div>/api/v2/public/profile/subscriptions</div></div>
+      <div><div>requestType</div><div>newsletter_subscription</div></div>
+      <div><div>successMessage</div><div>You're subscribed. Thank you!</div></div>
+      <div><div>failureMessage</div><div>We couldn't complete your subscription. Please try again.</div></div>
+      <div><div>recaptcha</div><div>false</div></div>
+      <div><div>submitLabel</div><div>Subscribe</div></div>
+
+      <div><div>email</div><div>email</div><div>Email</div><div>true</div><div>jane@doe.com</div><div>^[^@\s]+@[^@\s]+\.[^@\s]+$</div><div>Enter a valid email address</div></div>
+      <div><div>text</div><div>firstName</div><div>First name</div><div>false</div><div>Jane</div><div></div><div></div></div>
+      <div><div>checkbox</div><div>consent</div><div>I agree to receive marketing emails</div><div>true</div><div></div><div></div><div></div><div>marketing|v1</div></div>
+    </div>
+  </main>
+
+  <script type="module">
+    import decorate from './adc-form.js';
+
+    document.querySelectorAll('.adc-form').forEach((block) => decorate(block));
+  </script>
+</body>
+</html>

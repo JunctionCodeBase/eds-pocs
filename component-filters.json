@@ -1,0 +1,109 @@
+[
+  {
+    "id": "main",
+    "components": [
+      "section"
+    ]
+  },
+  {
+    "id": "section",
+    "components": [
+      "text",
+      "image",
+      "button",
+      "title",
+      "hero",
+      "cards",
+      "fragment",
+      "columns",
+      "hero-banner",
+      "adc-accordion",
+      "adc-tabs",
+      "adc-cta-banner",
+      "adc-form",
+      "adc-card-carousel",
+      "adc-video-playlist",
+      "adc-cards",
+      "adc-card",
+      "adc-image",
+      "adc-inline-text-title",
+      "adc-link",
+      "adc-logo",
+      "adc-button",
+      "adc-header-logo",
+      "adc-mega-menu",
+      "adc-header-search",
+      "adc-header-link",
+      "adc-header-language",
+      "adc-header-links"
+    ]
+  },
+  {
+    "id": "adc-accordion",
+    "components": [
+      "adc-accordion-item"
+    ]
+  },
+  {
+    "id": "adc-form",
+    "components": [
+      "adc-form-field"
+    ]
+  },
+  {
+    "id": "adc-card-carousel",
+    "components": [
+      "adc-card-item"
+    ]
+  },
+  {
+    "id": "adc-card",
+    "components": [
+      "adc-image",
+      "adc-logo",
+      "adc-inline-text-title",
+      "adc-link",
+      "text"
+    ]
+  },
+  {
+    "id": "adc-cards",
+    "components": [
+      "adc-card-item"
+    ]
+  },
+  {
+    "id": "adc-tabs",
+    "components": [
+      "adc-tabs-item"
+    ]
+  },
+  {
+    "id": "adc-video-playlist",
+    "components": [
+      "adc-video-item"
+    ]
+  },
+  {
+    "id": "cards",
+    "components": [
+      "card"
+    ]
+  },
+  {
+    "id": "columns",
+    "components": [
+      "column"
+    ]
+  },
+  {
+    "id": "column",
+    "components": [
+      "text",
+      "image",
+      "button",
+      "title"
+    ]
+  }
+]
+
