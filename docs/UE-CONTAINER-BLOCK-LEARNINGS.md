@@ -98,9 +98,9 @@ detection bug. Removed it.
 
 1. **Verify config is deployed** (rules out 90% of false leads):
    ```bash
-   curl -s https://main--eds-poc--naveenrapelly34.aem.live/component-definition.json | jq '...'
-   curl -s https://main--eds-poc--naveenrapelly34.aem.live/component-filters.json | jq '...'
-   curl -s https://main--eds-poc--naveenrapelly34.aem.live/component-models.json | jq 'length'
+   curl -s https://main--eds-pocs--junctioncodebase.aem.live/component-definition.json | jq '...'
+   curl -s https://main--eds-pocs--junctioncodebase.aem.live/component-filters.json | jq '...'
+   curl -s https://main--eds-pocs--junctioncodebase.aem.live/component-models.json | jq 'length'
    ```
    Confirm: container has `template.filter` + `model`; child uses
    `.../block/v1/block/item`; a filter `{id: container, components:[child]}`

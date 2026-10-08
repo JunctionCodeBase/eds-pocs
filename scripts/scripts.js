@@ -128,7 +128,7 @@ export function decorateMain(main) {
  * The theme is fully author-driven — no themes are hardcoded here:
  *  - Per page: authors set the "theme" field in page properties.
  *  - Per section/country: set `theme` in the Metadata sheet by URL glob
- *    (e.g. /keenpanther20891/** -> theme2), which Helix injects as a
+ *    (e.g. /en/** -> theme2), which Helix injects as a
  *    <meta name="theme"> tag on every matching page.
  * Falls back to "theme1" when no theme metadata is present.
  */
